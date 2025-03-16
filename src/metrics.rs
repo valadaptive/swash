@@ -2,6 +2,12 @@
 Font and glyph metrics.
 */
 
+use skrifa::raw::tables::glyf::Glyf;
+use skrifa::raw::tables::gvar::Gvar;
+use skrifa::raw::tables::loca::Loca;
+use skrifa::raw::types::F2Dot14;
+use skrifa::raw::{FontData, FontRead, TableProvider};
+
 use super::internal::*;
 use super::{FontRef, GlyphId, NormalizedCoord};
 
@@ -121,6 +127,11 @@ impl MetricsProxy {
                 }
             }
         }
+        let loca_glyf = if let (Ok(loca), Ok(glyf)) = (font.inner.loca(None), font.inner.glyf()) {
+            Some((loca, glyf))
+        } else {
+            None
+        };
         GlyphMetrics {
             data,
             coords,
@@ -128,10 +139,14 @@ impl MetricsProxy {
             glyph_count: self.glyph_count,
             hmtx: self.hmtx,
             hvar: self.hvar,
-            glyf: self.glyf,
-            loca: self.loca,
-            loca_fmt: self.loca_fmt,
-            gvar: self.gvar,
+            loca_glyf,
+            gvar: if self.gvar == 0 {
+                None
+            } else {
+                data.get(self.gvar as usize..).and_then(|glyf_data| {
+                    skrifa::raw::tables::gvar::Gvar::read(FontData::new(glyf_data)).ok()
+                })
+            },
             hmtx_count: self.hmtx_count,
             has_vvar: self.has_vvar,
             vertical,
@@ -197,8 +212,8 @@ impl MetricsProxy {
         self.hmtx_count = hhea.map(|t| t.num_long_metrics()).unwrap_or(1);
         self.hmtx = font.table_offset(xmtx::HMTX);
         self.hvar = font.table_offset(var::HVAR);
-        let glyf = font.table_offset(glyf::GLYF);
-        let loca = font.table_offset(glyf::LOCA);
+        let glyf = font.table_offset(var::GLYF);
+        let loca = font.table_offset(var::LOCA);
         let loca_fmt = font
             .head()
             .map(|t| t.index_to_location_format() as u8)
@@ -207,7 +222,7 @@ impl MetricsProxy {
             self.glyf = glyf;
             self.loca = loca;
             self.loca_fmt = loca_fmt;
-            self.gvar = font.table_offset(glyf::GVAR);
+            self.gvar = font.table_offset(var::GVAR);
         }
         let mut vmtx = 0;
         if vhea.is_some() {
@@ -336,10 +351,8 @@ pub struct GlyphMetrics<'a> {
     glyph_count: u16,
     hmtx: u32,
     hvar: u32,
-    glyf: u32,
-    loca: u32,
-    loca_fmt: u8,
-    gvar: u32,
+    gvar: Option<Gvar<'a>>,
+    loca_glyf: Option<(Loca<'a>, Glyf<'a>)>,
     hmtx_count: u16,
     has_vvar: bool,
     vertical: Vertical,
@@ -393,15 +406,21 @@ impl<'a> GlyphMetrics<'a> {
 
     /// Returns the phantom point deltas for the specified glyph.
     fn phantom_point_deltas(&self, glyph_id: GlyphId) -> Option<[[f32; 2]; 4]> {
-        var::phantom_point_deltas(
-            self.data,
-            self.glyf,
-            self.loca,
-            self.loca_fmt,
-            self.gvar,
-            glyph_id,
-            self.coords,
-        )
+        if let (Some(gvar), Some((loca, glyf))) = (self.gvar, self.loca_glyf) {
+            let deltas = gvar
+                .phantom_point_deltas(
+                    &glyf,
+                    &loca,
+                    unsafe { &*(self.coords as *const [i16] as *const [F2Dot14]) },
+                    glyph_id.into(),
+                )
+                .ok()
+                .flatten()?;
+
+            Some(deltas.map(|p| [p.x.to_f32(), p.y.to_f32()]))
+        } else {
+            None
+        }
     }
 
     /// Returns the horizontal advance for the specified glyph.
@@ -409,10 +428,8 @@ impl<'a> GlyphMetrics<'a> {
         let mut v = xmtx::advance(self.data, self.hmtx, self.hmtx_count, glyph_id) as f32;
         if self.hvar != 0 {
             v += var::advance_delta(self.data, self.hvar, glyph_id, self.coords);
-        } else if self.gvar != 0 {
-            if let Some([left, right, _top, _bottom]) = self.phantom_point_deltas(glyph_id) {
-                v += right[0] - left[0];
-            }
+        } else if let Some([left, right, _top, _bottom]) = self.phantom_point_deltas(glyph_id) {
+            v += right[0] - left[0];
         }
         v * self.scale
     }
@@ -445,12 +462,10 @@ impl<'a> GlyphMetrics<'a> {
                     let mut v = xmtx::advance(self.data, vmtx, long_count, glyph_id) as f32;
                     if vvar != 0 {
                         v += var::advance_delta(self.data, vvar, glyph_id, self.coords);
-                    } else if self.gvar != 0 {
-                        if let Some([_left, _right, top, bottom]) =
-                            self.phantom_point_deltas(glyph_id)
-                        {
-                            v += bottom[1] - top[1];
-                        }
+                    } else if let Some([_left, _right, top, bottom]) =
+                        self.phantom_point_deltas(glyph_id)
+                    {
+                        v += bottom[1] - top[1];
                     }
                     v
                 }
@@ -489,10 +504,14 @@ impl<'a> GlyphMetrics<'a> {
         self.scale
             * match self.vertical {
                 Vertical::VmtxGlyf { .. } => {
-                    if let Some(max_y) =
-                        glyf::ymax(self.data, self.loca_fmt, self.loca, self.glyf, glyph_id)
-                    {
-                        max_y as f32 + self.tsb(glyph_id)
+                    let y_max = self
+                        .loca_glyf
+                        .and_then(|(loca, glyf)| {
+                            loca.get_glyf(glyph_id.into(), &glyf).ok().flatten()
+                        })
+                        .map(|data| data.y_max());
+                    if let Some(y_max) = y_max {
+                        y_max as f32 + self.tsb(glyph_id)
                     } else {
                         self.units_per_em as f32
                     }

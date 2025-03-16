@@ -12,6 +12,9 @@ pub const AVAR: RawTag = raw_tag(b"avar");
 pub const HVAR: RawTag = raw_tag(b"HVAR");
 pub const VVAR: RawTag = raw_tag(b"VVAR");
 pub const MVAR: RawTag = raw_tag(b"MVAR");
+pub const GLYF: RawTag = raw_tag(b"glyf");
+pub const LOCA: RawTag = raw_tag(b"loca");
+pub const GVAR: RawTag = raw_tag(b"gvar");
 
 /// Font variations table.
 #[derive(Copy, Clone)]

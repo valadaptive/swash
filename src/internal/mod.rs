@@ -5,7 +5,6 @@
 pub mod aat;
 pub mod at;
 pub mod cmap;
-pub mod glyf;
 pub mod head;
 pub mod var;
 pub mod vorg;
