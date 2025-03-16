@@ -52,7 +52,7 @@ impl MetricsProxy {
     /// normalized variation coordinates. This proxy must have been created
     /// from the same font.
     pub fn materialize_metrics(&self, font: &FontRef, coords: &[NormalizedCoord]) -> Metrics {
-        let data = font.data;
+        let data = font.data();
         let mut m = Metrics {
             units_per_em: self.units_per_em,
             glyph_count: self.glyph_count,
@@ -101,7 +101,7 @@ impl MetricsProxy {
         font: &FontRef<'a>,
         coords: &'a [NormalizedCoord],
     ) -> GlyphMetrics<'a> {
-        let data = font.data;
+        let data = font.data();
         let mut vertical = self.vertical;
         if !coords.is_empty() {
             if let Vertical::Synthesized {

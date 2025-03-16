@@ -68,14 +68,20 @@ impl BitmapStrikesProxy {
     /// Materializes an alpha strike iterator for the specified font. This
     /// proxy must have been created from the same font.
     pub fn materialize_alpha<'a>(&self, font: &FontRef<'a>) -> BitmapStrikes<'a> {
-        self.materialize_impl(font.data, self.bitmaps.0, self.bitmaps.1, self.upem, false)
+        self.materialize_impl(
+            font.data(),
+            self.bitmaps.0,
+            self.bitmaps.1,
+            self.upem,
+            false,
+        )
     }
 
     /// Materializes a color strike iterator for the specified font. This
     /// proxy must have been created from the same font.
     pub fn materialize_color<'a>(&self, font: &FontRef<'a>) -> BitmapStrikes<'a> {
         self.materialize_impl(
-            font.data,
+            font.data(),
             self.color_bitmaps.0,
             self.color_bitmaps.1,
             self.upem,

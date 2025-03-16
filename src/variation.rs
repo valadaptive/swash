@@ -29,7 +29,7 @@ impl VariationsProxy {
     /// been created by the same font.
     pub fn materialize<'a>(&self, font: &FontRef<'a>) -> Variations<'a> {
         let data = if self.fvar != 0 {
-            font.data.get(self.fvar as usize..).unwrap_or(&[])
+            font.data().get(self.fvar as usize..).unwrap_or(&[])
         } else {
             &[]
         };
@@ -173,7 +173,7 @@ impl<'a> Variation<'a> {
     /// Computes a normalized coordinate for the specified value.
     pub fn normalize(&self, value: f32) -> NormalizedCoord {
         let avar = if self.avar != 0 {
-            Some((self.font.data, self.avar))
+            Some((self.font.data(), self.avar))
         } else {
             None
         };
@@ -306,7 +306,7 @@ impl<'a> Instance<'a> {
     /// Returns an iterator over the normalized coordinates for the instance.
     pub fn normalized_coords(&self) -> impl Iterator<Item = NormalizedCoord> + 'a {
         let avar = if self.parent.avar != 0 {
-            Some((self.parent.font.data, self.parent.avar))
+            Some((self.parent.font.data(), self.parent.avar))
         } else {
             None
         };

@@ -230,7 +230,7 @@ use skrifa::{
     GlyphId as SkrifaGlyphId, MetadataProvider,
 };
 
-use super::internal;
+use super::internal::{self, RawFont};
 use super::{cache::FontCache, setting::Setting, FontRef, GlyphId, NormalizedCoord};
 use alloc::vec::Vec;
 use core::borrow::Borrow;
@@ -353,15 +353,8 @@ impl<'a> ScalerBuilder<'a> {
     fn new(context: &'a mut ScaleContext, font: impl Into<FontRef<'a>>) -> Self {
         let font = font.into();
         let (id, proxy) = context.fonts.get(&font, None, ScalerProxy::from_font);
-        let skrifa_font = if font.offset == 0 {
-            skrifa::FontRef::new(font.data).ok()
-        } else {
-            // TODO: make this faster
-            let index = crate::FontDataRef::new(font.data)
-                .and_then(|font_data| font_data.fonts().position(|f| f.offset == font.offset));
-            index.and_then(|index| skrifa::FontRef::from_index(font.data, index as u32).ok())
-        };
-        let outlines = skrifa_font.map(|font_ref| font_ref.outline_glyphs());
+        let skrifa_font = font.inner;
+        let outlines = Some(skrifa_font.outline_glyphs());
         Self {
             state: &mut context.state,
             hinting_cache: &mut context.hinting_cache,
@@ -511,7 +504,7 @@ impl<'a> Scaler<'a> {
         if !self.has_color_outlines() {
             return false;
         }
-        let layers = match self.proxy.color.layers(self.font.data, glyph_id) {
+        let layers = match self.proxy.color.layers(self.font.data(), glyph_id) {
             Some(layers) => layers,
             _ => return false,
         };
@@ -577,7 +570,7 @@ impl<'a> Scaler<'a> {
         if !self.has_color_outlines() {
             return false;
         }
-        let layers = match self.proxy.color.layers(self.font.data, glyph_id) {
+        let layers = match self.proxy.color.layers(self.font.data(), glyph_id) {
             Some(layers) => layers,
             _ => return false,
         };

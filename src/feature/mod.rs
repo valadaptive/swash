@@ -53,10 +53,10 @@ impl<'a> WritingSystems<'a> {
         WritingSystems {
             kind: match kind {
                 Kind::At(gsub, gpos) => WritingSystemsKind::At(at::WritingSystems::new(
-                    at::Scripts::new(Bytes::new(font.data), gsub, gpos),
+                    at::Scripts::new(Bytes::new(font.data()), gsub, gpos),
                 )),
                 Kind::Aat(morx, kern) => WritingSystemsKind::Aat(Some(aat::Item {
-                    chains: aat::chains(font.data, morx),
+                    chains: aat::chains(font.data(), morx),
                     kern,
                 })),
                 _ => WritingSystemsKind::None,
@@ -207,10 +207,10 @@ impl<'a> Features<'a> {
         Self {
             kind: match kind {
                 Kind::At(gsub, gpos) => {
-                    FeaturesKind::AtAll(at::AllFeatures::new(Bytes::new(font.data), gsub, gpos))
+                    FeaturesKind::AtAll(at::AllFeatures::new(Bytes::new(font.data()), gsub, gpos))
                 }
                 Kind::Aat(morx, kern) => {
-                    FeaturesKind::Aat(aat::Features::new(aat::chains(font.data, morx), kern))
+                    FeaturesKind::Aat(aat::Features::new(aat::chains(font.data(), morx), kern))
                 }
                 _ => FeaturesKind::None,
             },

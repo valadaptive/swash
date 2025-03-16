@@ -260,9 +260,12 @@ use super::{
     cache::FontCache, charmap::Charmap, internal, metrics::Metrics, setting::Setting, FontRef,
     NormalizedCoord,
 };
-use crate::text::{
-    cluster::{CharCluster, Parser, ShapeClass, Token},
-    Language, Script,
+use crate::{
+    internal::RawFont,
+    text::{
+        cluster::{CharCluster, Parser, ShapeClass, Token},
+        Language, Script,
+    },
 };
 use alloc::vec::Vec;
 use at::{FeatureMask, FeatureStore, FeatureStoreBuilder};
@@ -518,7 +521,7 @@ impl<'a> ShaperBuilder<'a> {
     pub fn build(self) -> Shaper<'a> {
         let engine = Engine::new(
             &self.font_entry.metadata,
-            self.font.data,
+            self.font.data(),
             &self.coords[..],
             self.script,
             self.lang,

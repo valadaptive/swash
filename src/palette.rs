@@ -37,7 +37,7 @@ impl<'a> ColorPalettes<'a> {
     // Unused when render feature is disabled.
     #[allow(dead_code)]
     pub(crate) fn from_font_and_offset(font: &FontRef<'a>, offset: u32) -> Self {
-        let data = font.data.get(offset as usize..).unwrap_or(&[]);
+        let data = font.data().get(offset as usize..).unwrap_or(&[]);
         Self::new(*font, data)
     }
 

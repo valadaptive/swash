@@ -1,3 +1,5 @@
+use skrifa::raw::{FontData, FontRead, TableDirectory};
+
 use super::cache::CacheKey;
 use super::internal::{raw_data, RawFont};
 use super::Tag;
@@ -157,8 +159,8 @@ impl<'a> FontDataRef<'a> {
 ///
 #[derive(Copy, Clone)]
 pub struct FontRef<'a> {
+    pub(crate) inner: skrifa::raw::FontRef<'a>,
     /// Full content of a file containing the font.
-    pub data: &'a [u8],
     /// Offset to the table directory of the font.
     pub offset: u32,
     /// Key for identifying a font in various caches.
@@ -177,21 +179,23 @@ impl<'a> FontRef<'a> {
     /// table directory. Returns `None` if the offset is out of bounds or the
     /// data at the offset does not represent a table directory.
     pub fn from_offset(data: &'a [u8], offset: u32) -> Option<Self> {
-        if !raw_data::is_font(data, offset) {
-            None
-        } else {
-            Some(Self {
-                data,
-                offset,
-                key: CacheKey::new(),
-            })
-        }
+        let readfonts_data = FontData::new(data);
+        let table_dir_data = readfonts_data.slice(offset as usize..)?;
+        let inner = skrifa::raw::FontRef {
+            data: readfonts_data,
+            table_directory: TableDirectory::read(table_dir_data).ok()?,
+        };
+        Some(Self {
+            inner,
+            offset,
+            key: CacheKey::new(),
+        })
     }
 }
 
 impl<'a> RawFont<'a> for FontRef<'a> {
     fn data(&self) -> &'a [u8] {
-        self.data
+        self.inner.data.as_bytes()
     }
 
     fn offset(&self) -> u32 {

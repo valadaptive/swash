@@ -2,7 +2,7 @@
 Mapping characters to nominal glyph identifiers.
 */
 
-use super::internal::cmap;
+use super::internal::{cmap, RawFont};
 use super::{FontRef, GlyphId};
 
 /// Proxy for rematerializing a character map.
@@ -23,7 +23,7 @@ impl CharmapProxy {
     /// have been created from the same font.
     pub fn materialize<'a>(&self, font: &FontRef<'a>) -> Charmap<'a> {
         Charmap {
-            data: font.data,
+            data: font.data(),
             proxy: *self,
         }
     }
@@ -41,7 +41,7 @@ impl<'a> Charmap<'a> {
     pub fn from_font(font: &FontRef<'a>) -> Self {
         let proxy = CharmapProxy::from_font(font);
         Self {
-            data: font.data,
+            data: font.data(),
             proxy,
         }
     }

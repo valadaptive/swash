@@ -164,7 +164,7 @@ impl<'a> FontRef<'a> {
     pub fn table(&self, tag: Tag) -> Option<&'a [u8]> {
         use internal::RawFont;
         let range = self.table_range(tag)?;
-        self.data.get(range.0 as usize..range.1 as usize)
+        self.data().get(range.0 as usize..range.1 as usize)
     }
 
     /// Returns the name for the specified glyph identifier. This is an internal
