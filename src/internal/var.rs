@@ -281,7 +281,8 @@ pub fn phantom_point_deltas(
             unsafe { &*(coords as *const [i16] as *const [F2Dot14]) },
             glyph_id.into(),
         )
-        .ok()?;
+        .ok()
+        .flatten()?;
 
     Some(deltas.map(|p| [p.x.to_f32(), p.y.to_f32()]))
 }
