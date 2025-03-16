@@ -2,6 +2,8 @@
 
 use core::ops::Range;
 
+use skrifa::raw::types::{F2Dot14, Fixed};
+
 /// Buffer wrapping a byte slice for safely reading big endian data.
 #[derive(Copy, Clone)]
 pub struct Bytes<'a>(pub &'a [u8]);
@@ -518,6 +520,18 @@ impl FromBeData for U24 {
                 | (*buf.get_unchecked(offset + 1) as u32) << 8
                 | *buf.get_unchecked(offset + 2) as u32,
         )
+    }
+}
+
+impl FromBeData for Fixed {
+    unsafe fn from_be_data_unchecked(buf: &[u8], offset: usize) -> Self {
+        Self::from_bits(i32::from_be_data_unchecked(buf, offset))
+    }
+}
+
+impl FromBeData for F2Dot14 {
+    unsafe fn from_be_data_unchecked(buf: &[u8], offset: usize) -> Self {
+        Self::from_bits(i16::from_be_data_unchecked(buf, offset))
     }
 }
 

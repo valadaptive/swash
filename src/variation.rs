@@ -1,3 +1,5 @@
+use skrifa::raw::types::Fixed;
+
 use super::internal::{var::*, RawFont};
 use super::{
     setting::Setting,
@@ -175,7 +177,9 @@ impl<'a> Variation<'a> {
         } else {
             None
         };
-        self.axis.normalized_coord(value.into(), avar)
+        self.axis
+            .normalized_coord(Fixed::from_f64(value as f64), avar)
+            .to_bits()
     }
 }
 
@@ -310,6 +314,6 @@ impl<'a> Instance<'a> {
         (0..fvar.axis_count())
             .map(move |i| fvar.get_axis(i).unwrap_or_default())
             .zip(self.inner.values)
-            .map(move |(axis, value)| axis.normalized_coord(value, avar))
+            .map(move |(axis, value)| axis.normalized_coord(value, avar).to_bits())
     }
 }

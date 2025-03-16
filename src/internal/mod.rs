@@ -2,8 +2,6 @@
 
 #![allow(dead_code)]
 
-pub mod fixed;
-
 pub mod aat;
 pub mod at;
 pub mod cmap;

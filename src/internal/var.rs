@@ -1,8 +1,11 @@
 //! Font and metric variation tables.
 
-use skrifa::raw::{types::F2Dot14, FontData, FontRead};
+use skrifa::raw::{
+    types::{F2Dot14, Fixed},
+    FontData, FontRead,
+};
 
-use super::{fixed::Fixed, raw_tag, Array, Bytes, RawFont, RawTag, U24};
+use super::{raw_tag, Array, Bytes, RawFont, RawTag, U24};
 
 pub const FVAR: RawTag = raw_tag(b"fvar");
 pub const AVAR: RawTag = raw_tag(b"avar");
@@ -55,9 +58,9 @@ impl<'a> Fvar<'a> {
         let base = self.axis_offset as usize;
         let offset = base + index as usize * self.axis_size as usize;
         let tag = b.read::<u32>(offset)?;
-        let min = Fixed(b.read::<i32>(offset + 4)?);
-        let default = Fixed(b.read::<i32>(offset + 8)?);
-        let max = Fixed(b.read::<i32>(offset + 12)?);
+        let min = b.read::<Fixed>(offset + 4)?;
+        let default = b.read::<Fixed>(offset + 8)?;
+        let max = b.read::<Fixed>(offset + 12)?;
         let flags = b.read::<u16>(offset + 16)?;
         let name_id = b.read::<u16>(offset + 18)?;
         Some(VarAxis {
@@ -132,7 +135,7 @@ impl VarAxis {
 
     /// Returns a normalized axis coordinate for the specified value in 2.14
     /// fixed point format.
-    pub fn normalized_coord(&self, mut value: Fixed, avar: Option<(&[u8], u32)>) -> i16 {
+    pub fn normalized_coord(&self, mut value: Fixed, avar: Option<(&[u8], u32)>) -> F2Dot14 {
         use core::cmp::Ordering::*;
         if value < self.min {
             value = self.min;
@@ -142,7 +145,7 @@ impl VarAxis {
         value = match value.cmp(&self.default) {
             Less => -((self.default - value) / (self.default - self.min)),
             Greater => (value - self.default) / (self.max - self.default),
-            Equal => Fixed(0),
+            Equal => Fixed::ZERO,
         };
         value = value.min(Fixed::ONE).max(-Fixed::ONE);
         value = avar
@@ -245,11 +248,7 @@ pub fn adjust_axis(data: &[u8], avar: u32, axis: u16, coord: Fixed) -> Option<Fi
         .get(axis as usize)
         .transpose()
         .ok()??;
-    Some(Fixed(
-        mapping
-            .apply(skrifa::raw::types::Fixed::from_bits(coord.0))
-            .to_bits(),
-    ))
+    Some(mapping.apply(coord))
 }
 
 pub fn phantom_point_deltas(
@@ -332,12 +331,12 @@ pub fn item_delta(
         let mut scalar = ONE;
         for axis in 0..axis_count {
             let region_axis_base = region_offset + axis * 6;
-            let start = Fixed::from_f2dot14(b.read::<i16>(region_axis_base)?);
-            let peak = Fixed::from_f2dot14(b.read::<i16>(region_axis_base + 2)?);
-            let end = Fixed::from_f2dot14(b.read::<i16>(region_axis_base + 4)?);
+            let start = b.read::<F2Dot14>(region_axis_base)?.to_fixed();
+            let peak = b.read::<F2Dot14>(region_axis_base + 2)?.to_fixed();
+            let end = b.read::<F2Dot14>(region_axis_base + 4)?.to_fixed();
             let coord = coords
                 .get(axis)
-                .map(|c| Fixed::from_f2dot14(*c))
+                .map(|c| F2Dot14::from_bits(*c).to_fixed())
                 .unwrap_or(ZERO);
             if start > peak || peak > end || peak == ZERO || start < ZERO && end > ZERO {
                 continue;
